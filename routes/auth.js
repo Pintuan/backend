@@ -393,6 +393,19 @@ router.post('/getTransactions', async (req, res) => {
     }
 });
 
+router.post('/loadAccountDetails', async (req, res) => {
+    const { authorizationToken, user_id } = req.body;
+    if (authorizationToken && user_id) {
+        const query = `SELECT * FROM accounts a INNER JOIN users u ON a.user_id = u.user_id WHERE a.user_id = $1`;
+        try {
+            const results = await queryDatabase(query, [user_id]);
+            res.json(results);
+        } catch (error) {
+            return res.status(400).json({ error });
+        }
+    }
+});
+
 // Get customer's bill records
 router.post('/getCustomerBills', async (req, res) => {
     const { authorizationToken, customerId } = req.body;
