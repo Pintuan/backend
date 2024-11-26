@@ -318,9 +318,9 @@ router.post('/inquire', async (req, res) => {
     const { fname, mname, lname, contactNum, address, email, birthday, mothersMaidenName, plan, billing_address, landmark } = req.body;
     const userId = await genId('users', 'user_id', 999999999999);
     const accountId = await genId('accounts', 'account_id', 999999999999);
-    if (verifyEmail(email)) {
+    if (!verifyEmail(email)) {
         if (fname === '' || mname === '' || lname === '' || contactNum === '' || address === '' || email === '') {
-            return res.status(400).json({ error: 'fields must not be emmpty' })
+            return res.status(400).json({ error: 'fields must not be empty' })
         }
         else {
             const query = `
@@ -396,7 +396,10 @@ router.post('/getTransactions', async (req, res) => {
 router.post('/loadAccountDetails', async (req, res) => {
     const { authorizationToken, user_id } = req.body;
     if (authorizationToken && user_id) {
-        const query = `SELECT * FROM accounts a INNER JOIN users u ON a.user_id = u.user_id WHERE a.user_id = $1`;
+        const query = `SELECT * FROM accounts a 
+                        INNER JOIN users u ON a.user_id = u.user_id 
+                        INNER JOIN plans p on a.curr_plan = p.plan_id
+                        WHERE a.user_id = $1`;
         try {
             const results = await queryDatabase(query, [user_id]);
             res.json(results);
@@ -613,6 +616,21 @@ router.get('/get-ticket', async function (req, res) {
         } catch (error) {
             return res.status(400).json({ error });
         }
+    }
+});
+router.get('/accountTicket', async (req, res) => {
+    const authorizationToken = req.body.token;
+    const accountId = req.body.accountId;
+    if (authorizationToken) {
+        const query = `SELECT * FROM tickets WHERE account_id = $1`;
+        try {
+            const results = await queryDatabase(query, [accountId]);
+            res.json(results);
+        } catch (error) {
+            return res.status(400).json({ error });
+        }
+    } else {
+        return res.status(401).json({ error: 'Unauthorized' });
     }
 });
 
