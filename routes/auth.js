@@ -155,13 +155,8 @@ async function insertLog(userId, action, ipAddress) {
         const query = 'INSERT INTO systemlogs (log_id,user_id, time_date,action_taken, ip_address) VALUES  ($1, $2, $3, $4, $5)';
 
         // Execute the query with parameters
-        db.query(query, [await genId("systemlogs", "log_id", 123456789), userId, new Date(), action, ipAddress], (err, results) => {
-            if (err) {
-                return reject(err); // Reject the promise if there's an error
-            }
-
-            resolve(results); // Resolve with results if successful
-        });
+        const resp = queryDatabase(query, [await genId("systemlogs", "log_id", 123456789), userId, new Date(), action, ipAddress]);
+        console.log(resp);
     });
 }
 
@@ -230,7 +225,6 @@ router.post('/login', async (req, res) => {
         if (!username || !password) {
             return res.status(400).json({ error: 'Please enter both username and password.' });
         }
-        insertLog(user.account_id, "login", req.ip);
         const query = 'SELECT * FROM login WHERE username = $1';
         const results = await queryDatabase(query, [username]);
 
@@ -318,10 +312,17 @@ router.post('/updateUserInfo', async (req, res) => {
 //inquire customer
 router.post('/inquire', async (req, res) => {
     let x;
+    console.log("inquiry initiated");
     const { fname, mname, lname, contactNum, address, email, birthday, mothersMaidenName, plan, billing_address, landmark } = req.body;
-    const userId = await genId('users', 'user_id', 999999999999);
-    const accountId = await genId('accounts', 'account_id', 999999999999);
-    if (!verifyEmail(email)) {
+
+    console.log("starting user id generation");
+    const userId = await genId('users', 'user_id', 1234567890);
+    console.log("generated user id " + userId);
+    console.log("starting account id generation");
+    const accountId = await genId('accounts', 'account_id', 1234567890);
+    console.log("generated user id " + accountId);
+    console.log("verifying if the email is already used");
+    if (verifyEmail(email)) {
         if (fname === '' || mname === '' || lname === '' || contactNum === '' || address === '' || email === '') {
             return res.status(400).json({ error: 'fields must not be empty' })
         }
@@ -346,6 +347,9 @@ router.post('/inquire', async (req, res) => {
                 }
             }
         }
+    }
+    else {
+        return res.status(400).json({ error: 'Email is already in use' });
     }
 })
 // Retrieve user details using the authorization token
@@ -624,7 +628,7 @@ router.get('/get-ticket', async function (req, res) {
         }
     }
 });
-router.get('/accountTicket', async (req, res) => {
+router.post('/accountTicket', async (req, res) => {
     const authorizationToken = req.body.token;
     const accountId = req.body.accountId;
     if (authorizationToken) {
