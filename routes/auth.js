@@ -150,12 +150,12 @@ async function genId(table, field, length) {
     return id;
 }
 // Function to insert log
-function insertLog(logid, userId, action, ipAddress) {
-    return new Promise((resolve, reject) => {
-        const query = 'INSERT INTO systemlogs (logid,userId, timedate,actionTaken, ipAdd) VALUES  ($1, $2, $3, $4, $5)';
+async function insertLog(userId, action, ipAddress) {
+    return new Promise(async (resolve, reject) => {
+        const query = 'INSERT INTO systemlogs (log_id,user_id, time_date,action_taken, ip_address) VALUES  ($1, $2, $3, $4, $5)';
 
         // Execute the query with parameters
-        db.query(query, [logid, userId, new Date(), action, ipAddress], (err, results) => {
+        db.query(query, [await genId("systemlogs", "log_id", 123456789), userId, new Date(), action, ipAddress], (err, results) => {
             if (err) {
                 return reject(err); // Reject the promise if there's an error
             }
@@ -190,6 +190,7 @@ router.post('/forgot-password', async (req, res) => {
         const resp = await queryDatabase(query, [newPassword, results[0].user_id]);
         if (resp.length >= 0) {
             sendEmail(req.body.email, 'Password Recovery', text, html);
+
             return res.status(200).json({ resp: 'Password has been reset! please check your email for the instrunctions' });
         }
     }
@@ -229,7 +230,7 @@ router.post('/login', async (req, res) => {
         if (!username || !password) {
             return res.status(400).json({ error: 'Please enter both username and password.' });
         }
-
+        insertLog(user.account_id, "login", req.ip);
         const query = 'SELECT * FROM login WHERE username = $1';
         const results = await queryDatabase(query, [username]);
 
@@ -246,6 +247,8 @@ router.post('/login', async (req, res) => {
         const restriction = await getRestriction(user.account_id);
         const token = await bcrypt.hash(user.pass_word, 10);
         //insertLog(await ('systemlogs', 'logId', 100000000), user.accountId, 'Login', req.headers['x-forwarded-for'] || req.connection.remoteAddress);
+
+        insertLog(user.account_id, "login", req.ip);
         return res.json({ message: 'Login successful', token: token, zhas2chasT: restriction, auth: user.account_id });
     } catch (error) {
         res.status(500).json({ error: 'Server error', code: error.message });
@@ -334,6 +337,8 @@ router.post('/inquire', async (req, res) => {
 	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9);`;
                 x = await queryDatabase(newAccountQuery, [null, plan, accountId, null, 6201, userId, mothersMaidenName, billing_address, landmark]);
                 if (x) {
+
+                    insertLog(userId, "inquired", req.ip);
                     return res.status(200).send({ message: 'Success! we will send a confirmation message through your email address about your account status' });
                 }
                 else {
@@ -395,6 +400,7 @@ router.post('/getTransactions', async (req, res) => {
 
 router.post('/loadAccountDetails', async (req, res) => {
     const { authorizationToken, user_id } = req.body;
+    insertLog(user_id, "loaded Personal Account Information", req.ip);
     if (authorizationToken && user_id) {
         const query = `SELECT * FROM accounts a 
                         INNER JOIN users u ON a.user_id = u.user_id 
